@@ -1,8 +1,5 @@
 # Laboratorio 4 — Pipeline seguro con permissions y environments
 
-## Momento recomendado
-Después del Día 5.
-
 ## Mis Objetivos
 En este laboratorio he practicado e implementado los pilares fundamentales de la seguridad en sistemas de CI/CD utilizando GitHub Actions:
 - **permissions** (Principio de privilegios mínimos a nivel global y de job).
