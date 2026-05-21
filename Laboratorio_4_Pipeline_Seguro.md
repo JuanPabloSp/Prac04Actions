@@ -42,6 +42,12 @@ Una vez creados los secretos, procedemos a declarar las variables no sensibles e
 
 ![Secretos creados y botón de Variables en Staging](./img/Captura%20de%20pantalla%202026-05-21%20111058.png)
 
+Del mismo modo, para el entorno de **`production`**, configuramos sus respectivos secretos y definimos la variable no sensible `API_URL` con el endpoint de producción para demostrar el aislamiento de scopes y valores específicos por entorno:
+
+![Secretos creados en el entorno de Production](./img/Captura%20de%20pantalla%202026-05-21%20111247.png)
+
+![Creando la variable API_URL en el entorno de Production](./img/Captura%20de%20pantalla%202026-05-21%20111309.png)
+
 #### 2. Diferencias entre `vars` y `secrets`
 
 | Característica | Variables (`vars`) | Secretos (`secrets`) |
