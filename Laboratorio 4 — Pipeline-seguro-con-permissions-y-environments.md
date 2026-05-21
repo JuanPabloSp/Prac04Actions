@@ -246,6 +246,6 @@ Hemos diseñado un pipeline jerárquico que actúa como una serie de puertas de 
 ---
 
 ## 📦 Entregables del Proyecto
-1. **Archivo de Workflow Seguro (Python)**: Configurado con éxito en [.github/workflows/secure-pipeline.yml](file:///c:/Users/servin.T38/Downloads/lab-04-github/.github/workflows/secure-pipeline.yml).
-2. **Aplicación Python de Demostración**: Creada con sus scripts correspondientes en [app.py](file:///c:/Users/servin.T38/Downloads/lab-04-github/app.py) y [test_app.py](file:///c:/Users/servin.T38/Downloads/lab-04-github/test_app.py).
+1. **Archivo de Workflow Seguro (Python)**: Configurado con éxito en [.github/workflows/secure-pipeline.yml](file:///c:/Users/servin.T38/Downloads/LAB04/.github/workflows/secure-pipeline.yml).
+2. **Aplicación Python de Demostración**: Creada con sus scripts correspondientes en [app.py](file:///c:/Users/servin.T38/Downloads/LAB04/app.py) y [test_app.py](file:///c:/Users/servin.T38/Downloads/LAB04/test_app.py).
 3. **Explicación Completa**: Detallada íntegramente en esta misma guía de desarrollo seguro del laboratorio.
