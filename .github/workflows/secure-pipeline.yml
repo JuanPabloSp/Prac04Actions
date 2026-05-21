@@ -29,7 +29,7 @@ jobs:
 
       # actions/setup-python@v5.1.0
       - name: Setup Python
-        uses: actions/setup-python@db121b9a1755a0651c224401a4571bdf255c5a0a
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
         with:
           python-version: '3.11'
 
@@ -62,7 +62,7 @@ jobs:
 
       # actions/setup-python@v5.1.0
       - name: Setup Python
-        uses: actions/setup-python@db121b9a1755a0651c224401a4571bdf255c5a0a
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
         with:
           python-version: '3.11'
 
