@@ -93,12 +93,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read  # Solo necesita leer el repositorio para compilar
+      contents: read  # Solo necesita leer el repositorio para verificar y compilar sintaxis
       
   test:
     runs-on: ubuntu-latest
     permissions:
-      contents: read  # Solo necesita leer el repositorio para ejecutar tests
+      contents: read  # Solo necesita leer el repositorio para ejecutar tests unitarios de Python
       
   deploy-production:
     runs-on: ubuntu-latest
@@ -141,7 +141,7 @@ Una vez creado el entorno de `production`, aplicamos los controles obligatorios 
 
 #### 3. Visualización y Evidencia de Aprobación Manual (Mockup de Flujo UI)
 
-Cuando el pipeline se dispara al fusionar un cambio en `main`, los jobs de `build` y `test` corren automáticamente. Al llegar al job `deploy-production`, el workflow entra en estado **Waiting (Esperando)** y envía una alerta visual:
+Cuando el pipeline se dispara al fusionar un cambio en `main`, los jobs de `build` y `test` (Python) corren automáticamente. Al llegar al job `deploy-production`, el workflow entra en estado **Waiting (Esperando)** y envía una alerta visual:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -175,6 +175,7 @@ Hemos diseñado un pipeline jerárquico que actúa como una serie de puertas de 
                           ▼
             ┌───────────────────────────┐
             │   Running: build & test   │
+            │     (Python validation)   │
             └─────────────┬─────────────┘
                           │
                 [¿Tests exitosos?]
@@ -203,13 +204,13 @@ Hemos diseñado un pipeline jerárquico que actúa como una serie de puertas de 
    ```yaml
    if: github.ref == 'refs/heads/main'
    ```
-   Esto asegura que si un desarrollador sube cambios a una rama `dev` o `feature/api-key`, el pipeline correrá la compilación y los tests de forma normal para dar feedback de calidad, pero omitirá por completo (`skipped`) el bloque de producción.
+   Esto asegura que si un desarrollador sube cambios a una rama `dev` o `feature/api-key`, el pipeline correrá la verificación de sintaxis y los tests unitarios en Python de forma normal para dar feedback de calidad, pero omitirá por completo (`skipped`) el bloque de producción.
 2. **Solo si los tests son correctos**:
    Implementado a través del encadenamiento de dependencias mediante la directiva `needs`:
    ```yaml
    needs: [build, test]
    ```
-   Si el paso de pruebas automatizadas (`test`) falla debido a un error de lógica de negocio o de sintaxis, GitHub Actions aborta el workflow inmediatamente. El despliegue a producción jamás recibirá recursos del runner para iniciarse.
+   Si el paso de pruebas automatizadas en Python (`test` a través de `python -m unittest test_app.py`) falla debido a un error de lógica de negocio o de aserciones, GitHub Actions aborta el workflow inmediatamente. El despliegue a producción jamás recibirá recursos del runner para iniciarse.
 3. **Solo tras aprobación humana**:
    Garantizado mediante la vinculación con el entorno protegido:
    ```yaml
@@ -229,10 +230,10 @@ Hemos diseñado un pipeline jerárquico que actúa como una serie de puertas de 
 
 #### 2. Riesgos de Actions Externas sin Pinning
 - **El Peligro**: El uso de dependencias de terceros en formato libre (por ejemplo: `uses: actions/checkout@main` o `uses: autor/action-de-despliegue@v1`) expone al pipeline a un ataque de **Supply Chain (Cadena de Suministro)**. Si la cuenta del creador de la acción externa es comprometida, un atacante podría publicar código malicioso directamente en la rama `main` o reasignar el tag mutable `@v1` para que apunte a un commit con malware diseñado para robar tus secretos.
-- **Mejor Práctica**: Utilizar siempre **hashes SHA inmutables de 40 caracteres hexadecimales** para referenciar acciones de terceros (por ejemplo: `uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683`). Esto garantiza matemáticamente que el runner descargará y ejecutará exactamente el bloque de código que fue previamente auditado y aprobado por tu equipo de seguridad.
+- **Mejor Práctica**: Utilizar siempre **hashes SHA inmutables de 40 caracteres hexadecimales** para referenciar acciones de terceros (por ejemplo: `uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683`). Esto garantiza matemáticamente que el runner descargar y ejecutará exactamente el bloque de código que fue previamente auditado y aprobado por tu equipo de seguridad.
 
 #### 3. Riesgos de Permisos Excesivos
-- **El Peligro**: Por defecto, muchos workflows corren con un token `GITHUB_TOKEN` que posee permisos de escritura global (`write`). Si tu pipeline descarga y ejecuta una dependencia comprometida de npm, Python o Go durante la fase de tests, esta dependencia maliciosa puede acceder a las variables del sistema del runner, leer el `GITHUB_TOKEN` y utilizarlo para inyectar código directamente a la rama `main` sin pasar por revisiones de código (Pull Requests), o incluso suplantar tu firma electrónica en nuevas versiones (Releases).
+- **El Peligro**: Por defecto, muchos workflows corren con un token `GITHUB_TOKEN` que posee permisos de escritura global (`write`). Si tu pipeline descarga y ejecuta una dependencia comprometida de pip o código de terceros durante la fase de tests, esta dependencia maliciosa puede acceder a las variables del sistema del runner, leer el `GITHUB_TOKEN` y utilizarlo para inyectar código directamente a la rama `main` sin pasar por revisiones de código (Pull Requests), o incluso suplantar tu firma electrónica en nuevas versiones (Releases).
 - **Mejor Práctica**: Declarar el bloque `permissions: contents: read` a nivel global y activar explícitamente solo los permisos que se necesiten de forma granular en cada job. Si un job no requiere escribir en el repositorio, sus privilegios de escritura deben ser nulos.
 
 ---
@@ -240,11 +241,11 @@ Hemos diseñado un pipeline jerárquico que actúa como una serie de puertas de 
 ## 📝 Resumen de Restricciones Aplicadas en la Solución
 1. **Cero permisos `write` innecesarios**: Los permisos a nivel global y de cada job han sido bloqueados a `contents: read`.
 2. **Sin impresión de secretos**: No se utiliza ningún comando `echo` o similar sobre variables confidenciales. Todos los secretos se manejan mediante inyección directa a las variables de entorno de los contenedores locales.
-3. **Sin uso de tags mutables**: Todas las acciones externas de GitHub del archivo YAML están fijadas por sus **hashes SHA inmutables de commit**, garantizando la inmutabilidad absoluta de la cadena de suministro de software.
+3. **Sin uso de tags mutables**: Todas las acciones externas de GitHub del archivo YAML están fijadas por sus **hashes SHA inmutables de commit**, garantizando la inmutabilidad absoluta de la cadena de suministro de software (como `actions/setup-python@db121b9a1755a0651c224401a4571bdf255c5a0a`).
 
 ---
 
 ## 📦 Entregables del Proyecto
-1. **Archivo de Workflow Seguro**: Configurado con éxito en [.github/workflows/secure-pipeline.yml](file:///c:/Users/servin.T38/Downloads/lab-04-github/.github/workflows/secure-pipeline.yml).
-2. **Aplicación Node.js de Demostración**: Creada con sus scripts correspondientes en [package.json](file:///c:/Users/servin.T38/Downloads/lab-04-github/package.json), [index.js](file:///c:/Users/servin.T38/Downloads/lab-04-github/index.js), y [test.js](file:///c:/Users/servin.T38/Downloads/lab-04-github/test.js).
+1. **Archivo de Workflow Seguro (Python)**: Configurado con éxito en [.github/workflows/secure-pipeline.yml](file:///c:/Users/servin.T38/Downloads/lab-04-github/.github/workflows/secure-pipeline.yml).
+2. **Aplicación Python de Demostración**: Creada con sus scripts correspondientes en [app.py](file:///c:/Users/servin.T38/Downloads/lab-04-github/app.py) y [test_app.py](file:///c:/Users/servin.T38/Downloads/lab-04-github/test_app.py).
 3. **Explicación Completa**: Detallada íntegramente en esta misma guía de desarrollo seguro del laboratorio.
