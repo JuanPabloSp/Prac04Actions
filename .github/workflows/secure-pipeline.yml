@@ -115,9 +115,8 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    # Parte 4 - Conditions:
-    # 1. Solo si tests y build son correctos
-    needs: [build, test]
+    # 1. Solo si el despliegue en Staging fue correcto
+    needs: [deploy-staging]
     # 2. Solo desde la rama principal 'main'
     if: github.ref == 'refs/heads/main'
     
