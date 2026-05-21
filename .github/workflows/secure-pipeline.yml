@@ -1,0 +1,165 @@
+name: Secure Deployment Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+
+# Parte 2 - Permissions a nivel de workflow
+# Definimos permisos globales mínimos (solo lectura del contenido del repositorio).
+# Esto evita que tokens comprometidos tengan permisos de escritura (por ejemplo, write en contents, packages o actions).
+permissions:
+  contents: read
+
+jobs:
+  # Job 1: Construcción de la aplicación
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    # Restricción estricta de permisos a nivel de job
+    permissions:
+      contents: read
+    steps:
+      # Usar checkout con commit SHA exacto en lugar de tags (@v4) o ramas (@main)
+      # Esto previene ataques de cadena de suministro si el tag del repositorio es hackeado o modificado.
+      # actions/checkout@v4.2.2
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      # actions/setup-node@v4.1.0
+      - name: Setup Node.js
+        uses: actions/setup-node@39c5b2e40bc3852341b7646d20997b3e0a1c743e
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Upload Build Artifacts
+        # actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        with:
+          name: build-artifact
+          path: dist/
+          retention-days: 1
+
+  # Job 2: Validación mediante Tests
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # actions/checkout@v4.2.2
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      # actions/setup-node@v4.1.0
+      - name: Setup Node.js
+        uses: actions/setup-node@39c5b2e40bc3852341b7646d20997b3e0a1c743e
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Test Suite
+        run: npm test
+
+  # Job 3: Despliegue en Staging (Pre-producción)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    # Parte 4 - Conditions: El despliegue requiere que el build y los tests pasen exitosamente
+    needs: [build, test]
+    # Parte 3 - Environments: Vinculación con el entorno "staging"
+    environment:
+      name: staging
+      url: https://staging.example.com
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Download Build Artifacts
+        # actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: build-artifact
+          path: dist/
+
+      # Parte 1 - Secrets: Uso seguro de secretos inyectados como variables de entorno
+      # NUNCA se debe imprimir o usar echo para mostrar secretos en los logs
+      - name: Deploy to Staging Environment
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          API_KEY: ${{ secrets.API_KEY }}
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          echo "Iniciando despliegue seguro en Staging..."
+          echo "URL de la API configurada (Var no sensible): $API_URL"
+          # Validamos que los secretos no estén vacíos sin imprimirlos
+          if [ -z "$DEPLOY_TOKEN" ] || [ -z "$API_KEY" ]; then
+            echo "::error::Faltan secretos de despliegue críticos."
+            exit 1
+          fi
+          # Simulación del comando de despliegue usando los secretos de manera segura
+          echo "Desplegando artefactos a través de conexión segura..."
+          # curl -X POST -H "Authorization: Bearer $DEPLOY_TOKEN" -d "api_key=$API_KEY" $API_URL/deploy/staging
+          echo "Despliegue en Staging finalizado con éxito."
+
+  # Job 4: Despliegue en Producción
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    # Parte 4 - Conditions:
+    # 1. Solo si tests y build son correctos
+    needs: [build, test]
+    # 2. Solo desde la rama principal 'main'
+    if: github.ref == 'refs/heads/main'
+    
+    # Parte 3 - Environments: Vinculación con el entorno "production"
+    # Este entorno tiene configuradas reglas de protección en GitHub (Aprobación manual y revisores)
+    environment:
+      name: production
+      url: https://production.example.com
+    
+    permissions:
+      contents: read
+      
+    steps:
+      - name: Download Build Artifacts
+        # actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: build-artifact
+          path: dist/
+
+      # Parte 1 - Secrets: Uso seguro de secretos de entorno específicos de Producción
+      - name: Deploy to Production Environment
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          API_KEY: ${{ secrets.API_KEY }}
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          echo "Iniciando despliegue altamente seguro en PRODUCCIÓN..."
+          echo "Validando entorno de producción..."
+          echo "URL de la API en Producción: $API_URL"
+          
+          if [ -z "$DEPLOY_TOKEN" ] || [ -z "$API_KEY" ]; then
+            echo "::error::ERROR CRÍTICO: Faltan secretos de despliegue en Producción."
+            exit 1
+          fi
+          
+          echo "Desplegando en la infraestructura de producción principal..."
+          # Simulación de despliegue en producción usando variables de entorno
+          # curl -X POST -H "Authorization: Bearer $DEPLOY_TOKEN" -H "X-API-Key: $API_KEY" $API_URL/v1/release
+          echo "🚀 ¡Despliegue en Producción completado exitosamente!"
